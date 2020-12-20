@@ -19,7 +19,7 @@ async fn main() {
     loop {
         info!("Checking for new posts");
         check_posts(&api, &mut last_post).await;
-        std::thread::sleep(Duration::from_secs(3));
+        std::thread::sleep(Duration::from_secs(60*30));
     }
 }
 
