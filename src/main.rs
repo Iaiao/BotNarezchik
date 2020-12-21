@@ -85,7 +85,11 @@ fn process_post(post: Post) -> Option<usize> {
     let mut i = 0;
     let mut streams: Vec<Stream> = Vec::new();
     for video in videos {
-        if streams.iter().find(|stream| stream.id == video.id).is_some() {
+        if streams
+            .iter()
+            .find(|stream| stream.id == video.id)
+            .is_some()
+        {
             streams
                 .iter_mut()
                 .find(|stream| stream.id == video.id)?
@@ -94,13 +98,23 @@ fn process_post(post: Post) -> Option<usize> {
         } else {
             streams.push(Stream {
                 id: video.id,
-                narezki: vec!((video.time, video.name)),
+                narezki: vec![(video.time, video.name)],
             })
         }
         i += 1;
     }
-    dbg!(streams);
+    for stream in streams {
+        process_stream(stream)
+    }
     Some(i)
+}
+
+fn process_stream(stream: Stream) {
+    let narezki = stream.get_narezki();
+    dbg!(narezki);
+    // TODO download
+    // TODO cut
+    //
 }
 
 #[derive(Deserialize)]
@@ -122,4 +136,26 @@ struct Stream {
     // Vec<(таймкод, название)>
     narezki: Vec<(String, String)>,
     id: String,
+}
+
+impl Stream {
+    fn get_narezki(&self) -> Vec<Narezka> {
+        let mut narezki = Vec::new();
+        let mut iter = self.narezki.iter().peekable();
+        while let (Some((start_time, name)), Some((end_time, _))) = (iter.next(), iter.peek()) {
+            narezki.push(Narezka {
+                start: start_time.to_string(),
+                end: end_time.to_string(),
+                name: name.to_string(),
+            })
+        }
+        narezki
+    }
+}
+
+#[derive(Debug)]
+struct Narezka {
+    start: String,
+    end: String,
+    name: String,
 }
