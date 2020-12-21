@@ -6,6 +6,7 @@ use serde::Deserialize;
 use simple_logger::SimpleLogger;
 use tokio::time::Duration;
 
+const TOKEN: &str = env!("BN_VK_TOKEN");
 const WALL_ID: i32 = -170704076;
 const START_FROM: i64 = 0;
 
@@ -15,7 +16,7 @@ async fn main() {
         .with_level(LevelFilter::Info)
         .init()
         .unwrap();
-    let api = APIClient::new(env!("BN_VK_TOKEN"));
+    let api = APIClient::new(TOKEN);
     let mut last_post = START_FROM;
     // проверять каждые 30 минут
     loop {
