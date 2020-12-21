@@ -57,7 +57,6 @@ fn process_post(post: Post) -> Option<usize> {
     let videos = content
         .split("\n\n")
         .filter_map(|entry| {
-            info!("{}", entry);
             if let [entry, videos @ ..] = entry.lines().collect::<Vec<&str>>().as_slice() {
                 let video = videos
                     .iter()
@@ -83,8 +82,25 @@ fn process_post(post: Post) -> Option<usize> {
             }
         })
         .collect::<Vec<Video>>();
-    dbg!(videos);
-    Some(0)
+    let mut i = 0;
+    let mut streams: Vec<Stream> = Vec::new();
+    for video in videos {
+        if streams.iter().find(|stream| stream.id == video.id).is_some() {
+            streams
+                .iter_mut()
+                .find(|stream| stream.id == video.id)?
+                .narezki
+                .push((video.time, video.name))
+        } else {
+            streams.push(Stream {
+                id: video.id,
+                narezki: vec!((video.time, video.name)),
+            })
+        }
+        i += 1;
+    }
+    dbg!(streams);
+    Some(i)
 }
 
 #[derive(Deserialize)]
@@ -99,4 +115,11 @@ struct Video {
     name: String,
     id: String,
     time: String,
+}
+
+#[derive(Debug)]
+struct Stream {
+    // Vec<(таймкод, название)>
+    narezki: Vec<(String, String)>,
+    id: String,
 }
