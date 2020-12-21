@@ -1,25 +1,27 @@
+use log::*;
 use rvk::methods::wall;
 use rvk::objects::post::Post;
 use rvk::{APIClient, Params};
 use serde::Deserialize;
-use std::error::Error;
-use tokio::time::Duration;
 use simple_logger::SimpleLogger;
-use log::*;
+use tokio::time::Duration;
 
 const WALL_ID: i32 = -170704076;
 const START_FROM: i64 = 0;
 
 #[tokio::main]
 async fn main() {
-    SimpleLogger::new().with_level(LevelFilter::Info).init().unwrap();
+    SimpleLogger::new()
+        .with_level(LevelFilter::Info)
+        .init()
+        .unwrap();
     let api = APIClient::new(env!("BN_VK_TOKEN"));
     let mut last_post = START_FROM;
     // проверять каждые 30 минут
     loop {
         info!("Checking for new posts");
         check_posts(&api, &mut last_post).await;
-        std::thread::sleep(Duration::from_secs(60*30));
+        std::thread::sleep(Duration::from_secs(60 * 30));
     }
 }
 
@@ -27,27 +29,74 @@ async fn check_posts(api: &APIClient, last_post: &mut i64) {
     let mut params = Params::new();
     params.insert("owner_id".to_string(), WALL_ID.to_string());
     params.insert("offset".to_string(), 1.to_string());
-    params.insert("count".to_string(), 1.to_string());
+    params.insert("count".to_string(), 100.to_string());
 
-    let res = wall::get::<Posts>(api, params).await.expect("Не удалось загрузить посты");
+    let res = wall::get::<Posts>(api, params)
+        .await
+        .expect("Не удалось загрузить посты");
 
     for post in res.items {
         let id = post.id;
         let date = post.date;
         if date <= *last_post {
-            continue
+            continue;
         }
         info!("Post {}: {:?}", id, process_post(post));
         *last_post = date;
     }
 }
 
-fn process_post(post: Post) -> Result<(), Box<dyn Error>> {
-    Ok(())
+fn process_post(post: Post) -> Option<usize> {
+    let content = post
+        .text
+        .split("Интересные моменты стрима:")
+        .nth(1)?
+        .replace("Основной:", "")
+        .replace("Ночной:", "")
+        .replace("\n \n", "\n\n"); // хз зачем там пробел всегда стоит ну ок
+    let videos = content
+        .split("\n\n")
+        .filter_map(|entry| {
+            info!("{}", entry);
+            if let [entry, videos @ ..] = entry.lines().collect::<Vec<&str>>().as_slice() {
+                let video = videos
+                    .iter()
+                    .filter_map(|video| video.split("/").nth(3)?.split("?").nth(0))
+                    // пока что ничего не мёрджить, брать только первый кусок, потому что в большинстве случаев он только один
+                    .next()?;
+                let entry = entry.split(")").nth(1)?;
+                Some([entry, video])
+            } else {
+                None
+            }
+        })
+        .filter_map(|[entry, video_id]| {
+            let entry = entry.trim();
+            if let [name, time] = entry.split("(").collect::<Vec<&str>>().as_slice() {
+                Some(Video {
+                    name: name.trim().to_string(),
+                    time: time.to_string(),
+                    id: video_id.to_string(),
+                })
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<Video>>();
+    dbg!(videos);
+    Some(0)
 }
 
 #[derive(Deserialize)]
-pub struct Posts {
+struct Posts {
+    #[allow(unused)]
     count: i32,
     items: Vec<Post>,
+}
+
+#[derive(Debug)]
+struct Video {
+    name: String,
+    id: String,
+    time: String,
 }
