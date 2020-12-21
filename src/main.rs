@@ -20,7 +20,7 @@ async fn main() {
     let mut last_post = START_FROM;
     // проверять каждые 30 минут
     loop {
-        info!("Checking for new posts");
+        info!("Проверяю посты");
         check_posts(&api, &mut last_post).await;
         std::thread::sleep(Duration::from_secs(60 * 30));
     }
@@ -42,12 +42,12 @@ async fn check_posts(api: &APIClient, last_post: &mut i64) {
         if date <= *last_post {
             continue;
         }
-        info!("Post {}: {:?}", id, process_post(post));
+        info!("Post {}: {:?}", id, process_post(post).await);
         *last_post = date;
     }
 }
 
-fn process_post(post: Post) -> Option<usize> {
+async fn process_post(post: Post) -> Option<usize> {
     let content = post
         .text
         .split("Интересные моменты стрима:")
@@ -105,17 +105,45 @@ fn process_post(post: Post) -> Option<usize> {
         i += 1;
     }
     for stream in streams {
-        process_stream(stream)
+        process_stream(stream).await
     }
     Some(i)
 }
 
-fn process_stream(stream: Stream) {
+async fn process_stream(mut stream: Stream) {
     let narezki = stream.get_narezki();
-    dbg!(narezki);
-    // TODO download
-    // TODO cut
-    //
+    if !narezki.is_empty() {
+        // короткий стрим для тестов, не скачивать же все 5 часов
+        if cfg!(debug_assertions) {
+            stream.id = "38xr_pqxo_w".to_string();
+        }
+        if let youtube_dl::YoutubeDlOutput::SingleVideo(video_info) =
+            youtube_dl::YoutubeDl::new(stream.id.clone())
+                .socket_timeout("15")
+                .run()
+                .unwrap()
+        {
+            let formats = video_info
+                .formats
+                .expect("Невозможно получить форматы для загрузки");
+            let format = formats
+                .iter()
+                .max_by_key(|a| a.height)
+                .expect("Не найдено форматов для загрузки");
+            dbg!(format);
+
+            // Для форматов прямых трансляций в url сразу ссылка на стрим, а не на манифест
+            info!("Загружается стрим стрим {}", video_info.title);
+            let bytes = reqwest::get(&format.url.clone().unwrap())
+                .await
+                .unwrap()
+                .bytes()
+                .await
+                .unwrap()
+                .to_vec();
+            info!("Стрим загрузился: {}G", bytes.len() as f64 / 1024.0 / 1024.0 / 1024.0);
+        }
+    }
 }
 
 #[derive(Deserialize)]

@@ -12,3 +12,5 @@ tokio = { version = "0.2", features = [ "macros" ] }
 serde = { version = "1.0.118", features = [ "derive" ] }
 log = "0.4.11"
 simple_logger = "1.11.0"
+youtube_dl = "0.6.0"
+reqwest = "0.10.10"
