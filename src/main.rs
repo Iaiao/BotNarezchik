@@ -5,6 +5,8 @@ use rvk::{APIClient, Params};
 use serde::Deserialize;
 use simple_logger::SimpleLogger;
 use tokio::time::Duration;
+use std::process::{Command, Stdio};
+use std::io::Write;
 
 const TOKEN: &str = env!("BN_VK_TOKEN");
 const WALL_ID: i32 = -170704076;
@@ -115,7 +117,7 @@ async fn process_stream(mut stream: Stream) {
     if !narezki.is_empty() {
         // короткий стрим для тестов, не скачивать же все 5 часов
         if cfg!(debug_assertions) {
-            stream.id = "38xr_pqxo_w".to_string();
+            stream.id = "g8I2T_aDXGE".to_string();
         }
         if let youtube_dl::YoutubeDlOutput::SingleVideo(video_info) =
             youtube_dl::YoutubeDl::new(stream.id.clone())
@@ -128,20 +130,38 @@ async fn process_stream(mut stream: Stream) {
                 .expect("Невозможно получить форматы для загрузки");
             let format = formats
                 .iter()
-                .max_by_key(|a| a.height)
-                .expect("Не найдено форматов для загрузки");
-            dbg!(format);
+                .filter(|f| f.vcodec.is_some() && f.vcodec.as_ref().unwrap() != "none" && f.acodec.is_some() && f.acodec.as_ref().unwrap() != "none")
+                .max_by_key(|f| f.height)
+                .expect("Не найдено видео форматов для загрузки");
+            info!("Видео кодек: {}", format.vcodec.as_ref().unwrap());
+            info!("Аудио кодек: {}", format.acodec.as_ref().unwrap());
 
             // Для форматов прямых трансляций в url сразу ссылка на стрим, а не на манифест
             info!("Загружается стрим стрим {}", video_info.title);
-            let bytes = reqwest::get(&format.url.clone().unwrap())
+            let bytes = reqwest::get(format.url.as_ref().unwrap())
                 .await
                 .unwrap()
                 .bytes()
                 .await
-                .unwrap()
-                .to_vec();
+                .unwrap();
             info!("Стрим загрузился: {}G", bytes.len() as f64 / 1024.0 / 1024.0 / 1024.0);
+            for narezka in narezki {
+                println!("{:?}", narezka);
+                // пока что так
+                let mut handle = Command::new("ffmpeg")
+                    .arg("-y")
+                    .arg("-ss").arg(narezka.start)
+                    .arg("-i").arg("pipe:0")
+                    .arg("-to").arg(narezka.end)
+                    .arg("-c").arg("copy")
+                    .arg("narezka.mp4") // пока что сюда
+                    .stdin(Stdio::piped())
+                    .spawn()
+                    .expect("Не получилось запустить ffmpeg");
+                handle.stdin.as_mut().unwrap().write(&*bytes).expect("Не удалось передать видео в ffmpeg");
+                handle.wait().unwrap();
+                break;
+            }
         }
     }
 }
