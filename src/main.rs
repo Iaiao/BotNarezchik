@@ -154,12 +154,16 @@ async fn process_stream(mut stream: Stream) {
                     .arg("-i").arg("pipe:0")
                     .arg("-to").arg(narezka.end)
                     .arg("-c").arg("copy")
-                    .arg("narezka.mp4") // пока что сюда
+                    .arg("-f").arg("webm")
+                    .arg("-") // пока что сюда
                     .stdin(Stdio::piped())
+                    .stdout(Stdio::piped())
                     .spawn()
                     .expect("Не получилось запустить ffmpeg");
                 handle.stdin.as_mut().unwrap().write(&*bytes).expect("Не удалось передать видео в ffmpeg");
-                handle.wait().unwrap();
+                let output = handle.wait_with_output().unwrap();
+                let video = output.stdout;
+                println!("{:X?}", video); // starts with 1A 45 DF A3 - WEBM signature
                 break;
             }
         }
