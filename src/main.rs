@@ -11,6 +11,7 @@ use serde::Deserialize;
 use simple_logger::SimpleLogger;
 use tokio::time::Duration;
 use yup_oauth2::{Authenticator, AuthenticatorDelegate, DiskTokenStorage};
+use itertools::Itertools;
 
 const TOKEN: &str = env!("BN_VK_TOKEN");
 const WALL_ID: i32 = -170704076;
@@ -214,11 +215,11 @@ async fn process_stream(
                 let mut handle = Command::new("ffmpeg")
                     .arg("-y")
                     .arg("-ss")
-                    .arg(narezka.start)
+                    .arg(narezka.start.clone())
                     .arg("-i")
                     .arg("pipe:0")
                     .arg("-to")
-                    .arg(narezka.end)
+                    .arg(narezka.end.clone())
                     .arg("-c")
                     .arg("copy")
                     .arg("narezka.mp4")
@@ -242,8 +243,17 @@ async fn process_stream(
                     .expect("Что-то пошло не так и файл `narezka.mp4` не может быть открыт");
                 let mut vid = google_youtube3::Video::default();
                 vid.snippet = Some(VideoSnippet {
-                    description: Some("Описание нарезки".to_string()),
-                    tags: None,
+                    description: Some(
+                        format!(
+                            "В этой нарезке {}\nПОДПИШИСЬ И ПОСТАВЬ ЛАЙК!\n\nСтрим: https://youtu.be/{}?t={}, таймкод: {}-{}",
+                            narezka.name,
+                            stream.id,
+                            narezka.start,
+                            narezka.start,
+                            narezka.end
+                        )
+                    ),
+                    tags: Some(generate_tags(&narezka.name)),
                     default_audio_language: None,
                     channel_id: None,
                     published_at: None,
@@ -267,6 +277,24 @@ async fn process_stream(
             }
         }
     }
+}
+
+fn generate_tags(name: &str) -> Vec<String> {
+    let mut tags = Vec::new();
+
+    // Слова
+    tags.extend(name.split(" ").map(ToString::to_string));
+
+    // Комбинации слов
+    for k in 0..name.split(" ").count() {
+        tags.extend(name.split(" ").combinations(k).map(|words| words.join(" ")));
+    }
+
+    // Пятерка + тег
+    let pyatorka_tags = tags.iter().map(|tag| "Пятерка ".to_string() + tag).collect::<Vec<String>>();
+    tags.extend(pyatorka_tags);
+
+    tags.into_iter().filter(|a| !a.trim().is_empty()).collect()
 }
 
 #[derive(Deserialize)]
