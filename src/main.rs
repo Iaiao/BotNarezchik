@@ -285,14 +285,16 @@ fn generate_tags(name: &str) -> Vec<String> {
     // Слова
     tags.extend(name.split(" ").map(ToString::to_string));
 
-    // Комбинации слов
-    for k in 0..name.split(" ").count() {
-        tags.extend(name.split(" ").combinations(k).map(|words| words.join(" ")));
-    }
-
-    // Пятерка + тег
-    let pyatorka_tags = tags.iter().map(|tag| "Пятерка ".to_string() + tag).collect::<Vec<String>>();
-    tags.extend(pyatorka_tags);
+    // TODO понять почему оно отклоняет теги (длина?)
+    // // Комбинации слов
+    // for k in 0..name.split(" ").count() {
+    //     if tags.join(", ").len() >= 200
+    //     tags.extend(name.split(" ").combinations(k).map(|words| words.join(" ")));
+    // }
+    //
+    // // Пятерка + тег
+    // let pyatorka_tags = tags.iter().map(|tag| "Пятерка ".to_string() + tag).collect::<Vec<String>>();
+    // tags.extend(pyatorka_tags);
 
     tags.into_iter().filter(|a| !a.trim().is_empty()).collect()
 }
