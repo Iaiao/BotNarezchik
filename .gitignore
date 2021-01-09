@@ -1,6 +1,4 @@
-/target
-/.idea
-/*.iml
-/narezka.mp4
-/client_secret_*.apps.googleusercontent.com.json
-/tokens.json
+/client_secret.json
+/stream_*
+/node_modules
+/.vscode
