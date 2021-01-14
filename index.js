@@ -142,8 +142,8 @@ async function upload_all(narezki, stream, client) {
         }))) continue
         let proc = cp.spawn("ffmpeg", [
             "-ss", narezka.time,
-            "-i", "stream_" + stream,
             "-to", narezki[i + 1].time,
+            "-i", "stream_" + stream,
             "-c", "copy",
             "-f", "flv",
             "-"
