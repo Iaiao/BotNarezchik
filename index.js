@@ -7,7 +7,7 @@ var readline = require('readline');
 var {google} = require('googleapis');
 var OAuth2 = google.auth.OAuth2;
 const ProgressBar = require("progress")
-
+const yesno = require("yesno")
 let bar
 
 var SCOPES = ['https://www.googleapis.com/auth/youtube.upload'];
@@ -95,6 +95,7 @@ async function run(client) {
             let narezka = extract_metadata(entry)
             if(!streams[narezka.id]) streams[narezka.id] = []
             streams[narezka.id].push(narezka)
+            console.log(narezka)
         } catch(e) {
             console.log("Ой, а как какать?\n" + e)
         }
@@ -125,6 +126,9 @@ async function run(client) {
                 for(let i = 0; i < narezki.length - 1; i++) {
                     let narezka = narezki[i];
                     console.log("Нарезка", narezka.name, narezka.time + "-" + narezki[i + 1].time)
+                    if(!(await yesno({
+                        question: "Обрезать?"
+                    }))) continue
                     let proc = cp.spawn("ffmpeg", [
                         "-ss", narezka.time,
                         "-i", "stream_" + stream,
