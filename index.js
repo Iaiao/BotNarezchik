@@ -8,7 +8,7 @@ var {google} = require('googleapis');
 var OAuth2 = google.auth.OAuth2;
 const ProgressBar = require("progress")
 const yesno = require("yesno")
-let bar
+let bar, service
 
 var SCOPES = ['https://www.googleapis.com/auth/youtube.upload'];
 var TOKEN_DIR = (process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE) + '/.credentials/';
@@ -83,14 +83,14 @@ const vk = new VK({
 })
 
 async function run(client) {
-    var service = google.youtube('v3');
+    service = google.youtube('v3');
     let response = await vk.api.wall.getById({
         posts: "-170704076_" + process.env.POST
     })
     let text = response[0].text
     let utext = text.split(/\nОсновной: *\n/)[1].split(/\nНочной: *\n/)[0]
     let streams = {}
-    for(let entry of utext.split("\n \n")) {
+    for(let entry of utext.split(/\n\s*\n/)) {
         try {
             let narezka = extract_metadata(entry)
             if(!streams[narezka.id]) streams[narezka.id] = []
@@ -102,73 +102,82 @@ async function run(client) {
     }
     for(let [stream, narezki] of Object.entries(streams)) {
         //stream = "kTd_VZ-Bylo" // для дебаггинга скачивать не весь стрим полностью, а вот этот небольшой 30-минутный стрим
-        console.log("Стрим начнёт скачиваться через 5 секунд")
-        await sleep(5)
-        console.log("Загружаю стрим https://youtu.be/" + stream)
-        let str = youtubedl(stream)
-        str.on("info", res => {
-            bar = new ProgressBar("Загрузка [:bar] :percent :etas", {
-                complete: String.fromCharCode(0x2588), 
-                total: parseInt(res.size) 
+        if(fs.existsSync("stream_" + stream)) {
+            console.log("Стрим уже скачан, обрезаю")
+            upload_all(narezki, stream, client)
+        } else {
+            console.log("Стрим начнёт скачиваться через 5 секунд")
+            await sleep(5)
+            console.log("Загружаю стрим https://youtu.be/" + stream)
+            let str = youtubedl(stream)
+            str.on("info", res => {
+                bar = new ProgressBar("Загрузка [:bar] :percent :etas", {
+                    complete: String.fromCharCode(0x2588), 
+                    total: parseInt(res.size) 
+                })
             })
+            str.on("data", data => {
+                bar.tick(data.length)
+            })
+            toArray(str)
+                .then(async parts => {
+                    let file = fs.createWriteStream("stream_" + stream);
+                    for(let part of parts) {
+                        file.write(part)
+                    }
+                    file.close()
+                    console.log("Стрим успешно скачан.")
+                    upload_all(narezki, stream, client)
+            })
+        }
+    }
+}
+
+async function upload_all(narezki, stream, client) {
+    for(let i = 0; i < narezki.length - 1; i++) {
+        let narezka = narezki[i];
+        console.log("Нарезка", narezka.name, narezka.time + "-" + narezki[i + 1].time)
+        if(!(await yesno({
+            question: "Обрезать?"
+        }))) continue
+        let proc = cp.spawn("ffmpeg", [
+            "-ss", narezka.time,
+            "-i", "stream_" + stream,
+            "-to", narezki[i + 1].time,
+            "-c", "copy",
+            "-f", "flv",
+            "-"
+        ])
+        proc.stdin.on("error", err => {
+            console.log("Ffmpeg завершил работу: " + err.name)
         })
-        str.on("data", data => {
-            bar.tick(data.length)
-        })
-        toArray(str)
-            .then(async parts => {
-                let file = fs.createWriteStream("stream_" + stream);
-                for(let part of parts) {
-                    file.write(part)
-                }
-                file.close()
-                console.log("Стрим успешно скачан.")
-                for(let i = 0; i < narezki.length - 1; i++) {
-                    let narezka = narezki[i];
-                    console.log("Нарезка", narezka.name, narezka.time + "-" + narezki[i + 1].time)
-                    if(!(await yesno({
-                        question: "Обрезать?"
-                    }))) continue
-                    let proc = cp.spawn("ffmpeg", [
-                        "-ss", narezka.time,
-                        "-i", "stream_" + stream,
-                        "-to", narezki[i + 1].time,
-                        "-c", "copy",
-                        "-f", "flv",
-                        "-"
-                    ])
-                    proc.stdin.on("error", err => {
-                        console.log("Ffmpeg завершил работу: " + err.name)
-                    })
-                    console.log("Загружаю это на ютуб")
-                    let video = await service.videos.insert({
-                        auth: client,
-                        autoLevels: true,
-                        notifySubscribers: false,
-                        stabilize: true,
-                        requestBody: {
-                            status: {
-                                madeForKids: false,
-                                privacyStatus: "public"
-                            },
-                            snippet: {
-                              title: narezka.name,
-                              description: `В этой нарезке - ${narezka.name}
+        console.log("Загружаю это на ютуб")
+        let video = await service.videos.insert({
+            auth: client,
+            autoLevels: true,
+            notifySubscribers: false,
+            stabilize: true,
+            requestBody: {
+                status: {
+                    madeForKids: false,
+                    privacyStatus: "public"
+                },
+                snippet: {
+                  title: narezka.name,
+                  description: `В этой нарезке - ${narezka.name}
 Поставь лайк и подпишись!
 Стрим: https://youtu.be/${stream}?t=${narezka.time}`,
-                              defaultAudioLanguage: "ru",
-                              defaultLanguage: "ru",
-                            }
-                        },
-                        part: ["status", "snippet"],
-                        media: {
-                            mimeType: "video/flv",
-                            body: proc.stdout
-                        }
-                    })
-                    console.log(`Опубликована нарезка "${narezka.name}": https://youtu.be/${video.id}`)
+                  defaultAudioLanguage: "ru",
+                  defaultLanguage: "ru",
                 }
-            })
+            },
+            part: ["status", "snippet"],
+            media: {
+                mimeType: "video/flv",
+                body: proc.stdout
+            }
+        })
+        console.log(`Опубликована нарезка "${narezka.name}": https://youtu.be/${video.id}`)
     }
 }
 
