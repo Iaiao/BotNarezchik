@@ -16,7 +16,7 @@ var TOKEN_PATH = TOKEN_DIR + 'youtube-nodejs-quickstart.json';
 
 fs.readFile('client_secret.json', function processClientSecrets(err, content) {
     if (err) {
-        console.log('Ошибка чтения файла с секретами: ' + err);
+        console.log('Error reading client_secters.json: ' + err);
         return;
     }
     authorize(JSON.parse(content), run);
@@ -43,16 +43,16 @@ function getNewToken(oauth2Client, callback) {
         access_type: 'offline',
         scope: SCOPES
     });
-    console.log('Войди в приложение по ссылке: ', authUrl);
+    console.log('Log in: ', authUrl);
     var rl = readline.createInterface({
         input: process.stdin,
         output: process.stdout
     });
-    rl.question('Введи код оттуда: ', function(code) {
+    rl.question('Enter the code: ', function(code) {
         rl.close();
         oauth2Client.getToken(code, function(err, token) {
             if (err) {
-                console.log('Ошибка получения токена', err);
+                console.log('Error', err);
                 return;
             }
             oauth2Client.credentials = token;
@@ -72,7 +72,7 @@ function storeToken(token) {
     }
     fs.writeFile(TOKEN_PATH, JSON.stringify(token), (err) => {
         if (err) throw err;
-        console.log('Токен сохранён в ' + TOKEN_PATH);
+        console.log('Token is stored in ' + TOKEN_PATH);
     })
 }
 
@@ -97,21 +97,20 @@ async function run(client) {
             streams[narezka.id].push(narezka)
             console.log(narezka)
         } catch(e) {
-            console.log("Ой, а как какать?\n" + e)
+            console.log("Error:\n" + e)
         }
     }
     for(let [stream, narezki] of Object.entries(streams)) {
-        //stream = "kTd_VZ-Bylo" // для дебаггинга скачивать не весь стрим полностью, а вот этот небольшой 30-минутный стрим
         if(fs.existsSync("stream_" + stream)) {
-            console.log("Стрим уже скачан, обрезаю")
+            console.log("Livestream is already downloaded, trimming")
             upload_all(narezki, stream, client)
         } else {
-            console.log("Стрим начнёт скачиваться через 5 секунд")
+            console.log("Livestream will start downloading in 5 seconds")
             await sleep(5)
-            console.log("Загружаю стрим https://youtu.be/" + stream)
+            console.log("Downloading https://youtu.be/" + stream)
             let str = youtubedl(stream)
             str.on("info", res => {
-                bar = new ProgressBar("Загрузка [:bar] :percent :etas", {
+                bar = new ProgressBar("Downloading [:bar] :percent :etas", {
                     complete: String.fromCharCode(0x2588), 
                     total: parseInt(res.size) 
                 })
@@ -126,7 +125,7 @@ async function run(client) {
                         file.write(part)
                     }
                     file.close()
-                    console.log("Стрим успешно скачан.")
+                    console.log("Downloaded livestream successfully.")
                     upload_all(narezki, stream, client)
             })
         }
@@ -134,11 +133,12 @@ async function run(client) {
 }
 
 async function upload_all(narezki, stream, client) {
+    narezki.push({time: "12:00:00"})
     for(let i = 0; i < narezki.length - 1; i++) {
         let narezka = narezki[i];
-        console.log("Нарезка", narezka.name, narezka.time + "-" + narezki[i + 1].time)
+        console.log("Highlight:", narezka.name, narezka.time + "-" + narezki[i + 1].time)
         if(!(await yesno({
-            question: "Обрезать?"
+            question: "Upload?"
         }))) continue
         let proc = cp.spawn("ffmpeg", [
             "-ss", narezka.time,
@@ -149,9 +149,9 @@ async function upload_all(narezki, stream, client) {
             "-"
         ])
         proc.stdin.on("error", err => {
-            console.log("Ffmpeg завершил работу: " + err.name)
+            console.log("Ffmpeg is done: " + err.name)
         })
-        console.log("Загружаю это на ютуб")
+        console.log("Uploading to YouTube")
         let video = await service.videos.insert({
             auth: client,
             autoLevels: true,
@@ -177,7 +177,7 @@ async function upload_all(narezki, stream, client) {
                 body: proc.stdout
             }
         })
-        console.log(`Опубликована нарезка "${narezka.name}": https://youtu.be/${video.id}`)
+        console.log(`Highlight published "${narezka.name}": https://youtu.be/${video.id}`)
     }
 }
 
