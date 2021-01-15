@@ -156,7 +156,7 @@ async function upload_all(narezki, stream, client) {
             proc.stdout.pipe(fs.createWriteStream("narezka.mp4"))
         } else {
             console.log("Загружаю это на ютуб")
-            let video = await service.videos.insert({
+            await service.videos.insert({
                 auth: client,
                 autoLevels: true,
                 notifySubscribers: false,
