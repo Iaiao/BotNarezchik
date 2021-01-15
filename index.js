@@ -10,6 +10,8 @@ const ProgressBar = require("progress")
 const yesno = require("yesno")
 let bar, service
 
+const DEBUG = true
+
 var SCOPES = ['https://www.googleapis.com/auth/youtube.upload'];
 var TOKEN_DIR = (process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE) + '/.credentials/';
 var TOKEN_PATH = TOKEN_DIR + 'youtube-nodejs-quickstart.json';
@@ -101,7 +103,6 @@ async function run(client) {
         }
     }
     for(let [stream, narezki] of Object.entries(streams)) {
-        //stream = "kTd_VZ-Bylo" // для дебаггинга скачивать не весь стрим полностью, а вот этот небольшой 30-минутный стрим
         if(fs.existsSync("stream_" + stream)) {
             console.log("Стрим уже скачан, обрезаю")
             upload_all(narezki, stream, client)
@@ -151,33 +152,37 @@ async function upload_all(narezki, stream, client) {
         proc.stdin.on("error", err => {
             console.log("Ffmpeg завершил работу: " + err.name)
         })
-        console.log("Загружаю это на ютуб")
-        let video = await service.videos.insert({
-            auth: client,
-            autoLevels: true,
-            notifySubscribers: false,
-            stabilize: true,
-            requestBody: {
-                status: {
-                    madeForKids: false,
-                    privacyStatus: "public"
-                },
-                snippet: {
-                  title: narezka.name,
-                  description: `В этой нарезке - ${narezka.name}
+        if(DEBUG) {
+            proc.stdout.pipe(fs.createWriteStream("narezka.mp4"))
+        } else {
+            console.log("Загружаю это на ютуб")
+            let video = await service.videos.insert({
+                auth: client,
+                autoLevels: true,
+                notifySubscribers: false,
+                stabilize: true,
+                requestBody: {
+                    status: {
+                        madeForKids: false,
+                        privacyStatus: "public"
+                    },
+                    snippet: {
+                        title: narezka.name,
+                        description: `В этой нарезке - ${narezka.name}
 Поставь лайк и подпишись!
 Стрим: https://youtu.be/${stream}?t=${narezka.time}`,
-                  defaultAudioLanguage: "ru",
-                  defaultLanguage: "ru",
+                        defaultAudioLanguage: "ru",
+                        defaultLanguage: "ru",
+                    }
+                },
+                part: ["status", "snippet"],
+                media: {
+                    mimeType: "video/flv",
+                    body: proc.stdout
                 }
-            },
-            part: ["status", "snippet"],
-            media: {
-                mimeType: "video/flv",
-                body: proc.stdout
-            }
-        })
-        console.log(`Опубликована нарезка "${narezka.name}": https://youtu.be/${video.id}`)
+            })
+            console.log(`Опубликована нарезка "${narezka.name}"`)
+        }
     }
 }
 
