@@ -8,7 +8,8 @@ var {google} = require('googleapis');
 var OAuth2 = google.auth.OAuth2;
 const ProgressBar = require("progress")
 const yesno = require("yesno")
-let bar, service
+const Jimp = require("jimp")
+let bar
 
 const DEBUG = true
 
@@ -85,7 +86,6 @@ const vk = new VK({
 })
 
 async function run(client) {
-    service = google.youtube('v3');
     let response = await vk.api.wall.getById({
         posts: "-170704076_" + process.env.POST
     })
@@ -135,13 +135,14 @@ async function run(client) {
 }
 
 async function upload_all(narezki, stream, client) {
+    let service = google.youtube('v3')
     for(let i = 0; i < narezki.length - 1; i++) {
         let narezka = narezki[i];
         console.log("Нарезка", narezka.name, narezka.time + "-" + narezki[i + 1].time)
         if(!(await yesno({
             question: "Обрезать?"
         }))) continue
-        let proc = cp.spawn("ffmpeg", [
+        let proc_narezka = cp.spawn("ffmpeg", [
             "-ss", narezka.time,
             "-to", narezki[i + 1].time,
             "-i", "stream_" + stream,
@@ -149,14 +150,28 @@ async function upload_all(narezki, stream, client) {
             "-f", "flv",
             "-"
         ])
-        proc.stdin.on("error", err => {
+        let proc_screenshot = cp.spawn("ffmpeg", [
+            "-ss", narezka.time, // начало
+            "-i", "stream_" + stream,
+            "-ss", "00:25", // 25 секунд после начала
+            "-frames:v", "1",
+            "-q:v", "1",
+            "-f", "mjpeg",
+            "-"
+        ])
+        proc_narezka.stdin.on("error", err => {
             console.log("Ffmpeg завершил работу: " + err.name)
         })
+        proc_screenshot.stdin.on("error", err => {
+            console.log("Ffmpeg завершил работу: " + err.name)
+        })
+        
         if(DEBUG) {
-            proc.stdout.pipe(fs.createWriteStream("narezka.mp4"))
+            proc_screenshot.stdout.pipe(fs.createWriteStream("thumbnail.jpg"))
+            proc_narezka.stdout.pipe(fs.createWriteStream("narezka.mp4"))
         } else {
             console.log("Загружаю это на ютуб")
-            await service.videos.insert({
+            service.videos.insert({
                 auth: client,
                 autoLevels: true,
                 notifySubscribers: false,
@@ -173,15 +188,23 @@ async function upload_all(narezki, stream, client) {
 Стрим: https://youtu.be/${stream}?t=${narezka.time}`,
                         defaultAudioLanguage: "ru",
                         defaultLanguage: "ru",
+                        thumbnails: {
+                            
+                        }
                     }
                 },
                 part: ["status", "snippet"],
                 media: {
                     mimeType: "video/flv",
-                    body: proc.stdout
+                    body: proc_narezka.stdout
                 }
+            }, (err, video) => {
+                if(err) {
+                    console.error(err)
+                    process.exit(1)
+                }
+                console.log(`Опубликована нарезка "${video.data.snippet.title}" (https://youtu.be/${video.data.id})`)
             })
-            console.log(`Опубликована нарезка "${narezka.name}"`)
         }
     }
 }
