@@ -15,6 +15,18 @@ const SCOPES = ['https://www.googleapis.com/auth/youtube.upload'];
 const TOKEN_DIR = (process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE) + '/.credentials/';
 const TOKEN_PATH = TOKEN_DIR + 'youtube-nodejs-quickstart.json';
 
+const BANNED_WORDS = [
+    "смерт",
+    "умер",
+    "терр?ор",
+    "войн",
+    "убит",
+    "порн.",
+    "килл",
+    "рейд",
+    "г[оа]вн."
+] // в группе вроде не так много бан-слов, поэтому думаю не стоит добавлять 1000000 слов
+
 fs.readFile('client_secret.json', function processClientSecrets(err, content) {
     if (err) {
         console.log('Ошибка чтения файла с секретами: ' + err);
@@ -167,6 +179,7 @@ async function upload_all(narezki, stream, client) {
             proc_narezka.stderr.pipe(process.stderr)
         
             if(DEBUG) {
+                console.log("Tags: ", generate_tags(narezka.name))
                 (await thumbnail).pipe(fs.createWriteStream("thumbnail.jpg"))
                 proc_narezka.stdout.pipe(fs.createWriteStream("narezka.mp4"))
             } else {
@@ -234,11 +247,24 @@ function when_all_selected() {
 }
 
 function generate_tags(name) {
-    let words = name.split(" ")
-    let tags = []
+    let words = name.split(" ").map(word => word.replace(/,/g, ""))
+    let tags = "пятёрка,пятерка,пятерка нарезки,бот нарезки,бот нарезки пятёрки,"
     for(let word of words) {
-
+        word = word.toLowerCase()
+        if(Math.random() > 0.2) tags += "пятёрка " + word + ","
+        if(Math.random() > 0.2) tags += "пятерка " + word + ","
+        if(Math.random() > 0.8) tags += word + ","
+        if(Math.random() > 0.7) tags += word + " пятерка" + ","
     }
+    for(let i = 0; i < words.length - 1; i++) {
+        if(Math.random() > 0.3) tags += words[i] + " " + words[i + 1] + ","
+    }
+    for(let word of BANNED_WORDS) {
+        tags = tags.replace(new RegExp("[^,].*" + word + ".*[^,]", "g"))
+    }
+    tags += "фуга тв,фуга тв нарезка,пятёрка смотрит,пятёрка реакция,нарезки пятёрка,5opka,пятерка пятерка,пятёрка нарезка,пятерка нарезка,реакция пятерка"
+    tags = tags.substring(0, 465)
+    return tags
 }
 
 function create_thumbnail(screenshot) {
