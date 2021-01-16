@@ -1,21 +1,19 @@
-const VK = require("vk-io").VK;
-const youtubedl = require("youtube-dl")
+const VK = require("vk-io").VK
 const cp = require("child_process")
 const toArray = require("stream-to-array")
-var fs = require("fs");
-var readline = require('readline');
-var {google} = require('googleapis');
-var OAuth2 = google.auth.OAuth2;
-const ProgressBar = require("progress")
+const fs = require("fs")
+const readline = require('readline')
+const { google } = require('googleapis')
+const OAuth2 = google.auth.OAuth2;
 const yesno = require("yesno")
 const Jimp = require("jimp")
-let bar
+const { Readable } = require("stream")
 
-const DEBUG = true
+const DEBUG = false
 
-var SCOPES = ['https://www.googleapis.com/auth/youtube.upload'];
-var TOKEN_DIR = (process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE) + '/.credentials/';
-var TOKEN_PATH = TOKEN_DIR + 'youtube-nodejs-quickstart.json';
+const SCOPES = ['https://www.googleapis.com/auth/youtube.upload'];
+const TOKEN_DIR = (process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE) + '/.credentials/';
+const TOKEN_PATH = TOKEN_DIR + 'youtube-nodejs-quickstart.json';
 
 fs.readFile('client_secret.json', function processClientSecrets(err, content) {
     if (err) {
@@ -103,38 +101,35 @@ async function run(client) {
         }
     }
     for(let [stream, narezki] of Object.entries(streams)) {
-        if(fs.existsSync("stream_" + stream)) {
+        if(fs.existsSync("stream_" + stream + ".mkv")) {
             console.log("Стрим уже скачан, обрезаю")
             upload_all(narezki, stream, client)
         } else {
             console.log("Стрим начнёт скачиваться через 5 секунд")
             await sleep(5)
             console.log("Загружаю стрим https://youtu.be/" + stream)
-            let str = youtubedl(stream)
-            str.on("info", res => {
-                bar = new ProgressBar("Загрузка [:bar] :percent :etas", {
-                    complete: String.fromCharCode(0x2588), 
-                    total: parseInt(res.size) 
-                })
-            })
-            str.on("data", data => {
-                bar.tick(data.length)
-            })
-            toArray(str)
-                .then(async parts => {
-                    let file = fs.createWriteStream("stream_" + stream);
-                    for(let part of parts) {
-                        file.write(part)
-                    }
-                    file.close()
+            let youtubedl = cp.spawn("youtube-dl", [
+                stream,
+                "--merge-output-format", "mkv",
+                "-o", "stream_" + stream,
+            ])
+            youtubedl.stdout.pipe(process.stdout)
+            youtubedl.on("exit", (code, signal) => {
+                if(code == 0) {
                     console.log("Стрим успешно скачан.")
                     upload_all(narezki, stream, client)
+                } else {
+                    console.error("Стрим не скачан с кодом " + code + " " + signal)
+                }
             })
         }
     }
 }
 
+let allSelected = false
+
 async function upload_all(narezki, stream, client) {
+    process.stderr.setMaxListeners(50)
     let service = google.youtube('v3')
     for(let i = 0; i < narezki.length - 1; i++) {
         let narezka = narezki[i];
@@ -142,76 +137,129 @@ async function upload_all(narezki, stream, client) {
         if(!(await yesno({
             question: "Обрезать?"
         }))) continue
-        let proc_narezka = cp.spawn("ffmpeg", [
-            "-ss", narezka.time,
-            "-to", narezki[i + 1].time,
-            "-i", "stream_" + stream,
-            "-c", "copy",
-            "-f", "flv",
-            "-"
-        ])
-        let proc_screenshot = cp.spawn("ffmpeg", [
-            "-ss", narezka.time, // начало
-            "-i", "stream_" + stream,
-            "-ss", "00:25", // 25 секунд после начала
-            "-frames:v", "1",
-            "-q:v", "1",
-            "-f", "mjpeg",
-            "-"
-        ])
-        proc_narezka.stdin.on("error", err => {
-            console.log("Ffmpeg завершил работу: " + err.name)
-        })
-        proc_screenshot.stdin.on("error", err => {
-            console.log("Ffmpeg завершил работу: " + err.name)
-        })
+        whenAllSelected().then(async () => {
+            let proc_screenshot = cp.spawn("ffmpeg", [
+                "-ss", narezka.time, // начало
+                "-i", "stream_" + stream + ".mkv",
+                "-ss", "00:25", // 25 секунд после начала
+                "-frames:v", "1",
+                "-q:v", "1",
+                "-f", "mjpeg",
+                "-"
+            ])
+            proc_screenshot.stdin.on("error", err => {
+                console.log("Ffmpeg завершил работу: " + err.name)
+            })
+            let thumbnail = create_thumbnail(Buffer.concat(await toArray(proc_screenshot.stdout)))
+            let proc_narezka = cp.spawn("ffmpeg", [
+                "-v", "quiet",
+                "-stats",
+                "-ss", narezka.time,
+                "-to", narezki[i + 1].time,
+                "-i", "stream_" + stream + ".mkv",
+                "-c:v", "copy",
+                "-f", "flv",
+                "-"
+            ])
+            proc_narezka.stdin.on("error", err => {
+                console.log("Ffmpeg завершил работу: " + err.name)
+            })
+            proc_narezka.stderr.pipe(process.stderr)
         
-        if(DEBUG) {
-            proc_screenshot.stdout.pipe(fs.createWriteStream("thumbnail.jpg"))
-            proc_narezka.stdout.pipe(fs.createWriteStream("narezka.mp4"))
-        } else {
-            console.log("Загружаю это на ютуб")
-            service.videos.insert({
-                auth: client,
-                autoLevels: true,
-                notifySubscribers: false,
-                stabilize: true,
-                requestBody: {
-                    status: {
-                        madeForKids: false,
-                        privacyStatus: "public"
-                    },
-                    snippet: {
-                        title: narezka.name,
-                        description: `В этой нарезке - ${narezka.name}
+            if(DEBUG) {
+                (await thumbnail).pipe(fs.createWriteStream("thumbnail.jpg"))
+                proc_narezka.stdout.pipe(fs.createWriteStream("narezka.mp4"))
+            } else {
+                console.log("Загружаю это на ютуб");
+                service.videos.insert({
+                    auth: client,
+                    autoLevels: true,
+                    notifySubscribers: false,
+                    stabilize: true,
+                    requestBody: {
+                        status: {
+                            madeForKids: false,
+                            privacyStatus: "public"
+                        },
+                        snippet: {
+                            title: narezka.name,
+                            description: `В этой нарезке - ${narezka.name}
 Поставь лайк и подпишись!
 Стрим: https://youtu.be/${stream}?t=${narezka.time}`,
-                        defaultAudioLanguage: "ru",
-                        defaultLanguage: "ru",
-                        thumbnails: {
-                            
+                            defaultAudioLanguage: "ru",
+                            defaultLanguage: "ru"
                         }
+                    },
+                    part: ["status", "snippet"],
+                    media: {
+                        body: proc_narezka.stdout
                     }
-                },
-                part: ["status", "snippet"],
-                media: {
-                    mimeType: "video/flv",
-                    body: proc_narezka.stdout
-                }
-            }, (err, video) => {
-                if(err) {
-                    console.error(err)
-                    process.exit(1)
-                }
-                console.log(`Опубликована нарезка "${video.data.snippet.title}" (https://youtu.be/${video.data.id})`)
-            })
-        }
+                }, async (err, video) => {
+                    if(err) {
+                        console.error(err)
+                        process.exit(1)
+                    }
+                    console.log(`Опубликована нарезка "${video.data.snippet.title}" (https://youtu.be/${video.data.id})`)
+                    service.thumbnails.set({
+                        auth: client,
+                        videoId: video.data.id,
+                        media: {
+                            body: await thumbnail
+                        }
+                    }).then(_ => {
+                        console.log("Превью загружено")
+                    })
+                })
+            }
+        })
     }
+    allSelected = true
+}
+
+function whenAllSelected() {
+    return new Promise(async (resolve, reject) => {
+        function a() {
+            if(allSelected) {
+                resolve()
+            } else {
+                setTimeout(a, 100)
+            }
+        }
+        setTimeout(a, 100)
+    })
+}
+
+function create_thumbnail(screenshot) {
+    return new Promise(async (resolve, reject) => {
+        let files = fs.readdirSync("frames/")
+        let frame = files[Math.floor(Math.random() * files.length)]
+        Jimp.read(Buffer.from(screenshot)).then(image => {
+            Jimp.read("frames/" + frame).then(frame => {
+                image
+                    .contrast(0.25)
+                    .composite(frame, 0, 0)
+                    .convolute([
+                        [-1 / 3,    -1 / 3,  -1 / 3],
+                        [ 1 / 3,       1.2,  -1 / 3],
+                        [ 1 / 3,     1 / 3,   1 / 3]
+                    ])
+                image.getBuffer(Jimp.MIME_JPEG, (err, buf) => {
+                    let stream = new Readable({
+                        read() {
+                            this.push(buf);
+                            this.push(null);
+                        }
+                    })
+                    resolve(stream)
+                })
+            })
+        })
+    })
 }
 
 function extract_metadata(entry) {
-    let name = entry.substring(0, entry.lastIndexOf("(")).substring(entry.indexOf(") ") + 1).trim()
-    let time = entry.split("(").pop().split(/\)/)[0].trim()
+    let name = entry.substring(0, entry.split("\n")[0].lastIndexOf("(")).substring(entry.indexOf(") ") + 1).trim()
+    let time = entry.split("\n")[0].split("(").pop().split(/\)/)[0].trim()
     let id = entry.split("\n")[1].split("https://youtu.be/")[1].split("?")[0]
     return { name, time, id }
 }
