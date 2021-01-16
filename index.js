@@ -137,7 +137,7 @@ async function upload_all(narezki, stream, client) {
         if(!(await yesno({
             question: "Обрезать?"
         }))) continue
-        whenAllSelected().then(async () => {
+        when_all_selected().then(async () => {
             let proc_screenshot = cp.spawn("ffmpeg", [
                 "-ss", narezka.time, // начало
                 "-i", "stream_" + stream + ".mkv",
@@ -187,7 +187,8 @@ async function upload_all(narezki, stream, client) {
 Поставь лайк и подпишись!
 Стрим: https://youtu.be/${stream}?t=${narezka.time}`,
                             defaultAudioLanguage: "ru",
-                            defaultLanguage: "ru"
+                            defaultLanguage: "ru",
+                            tags: generate_tags(narezka.name)
                         }
                     },
                     part: ["status", "snippet"],
@@ -219,7 +220,7 @@ async function upload_all(narezki, stream, client) {
     allSelected = true
 }
 
-function whenAllSelected() {
+function when_all_selected() {
     return new Promise(async (resolve, reject) => {
         function a() {
             if(allSelected) {
@@ -230,6 +231,14 @@ function whenAllSelected() {
         }
         setTimeout(a, 100)
     })
+}
+
+function generate_tags(name) {
+    let words = name.split(" ")
+    let tags = []
+    for(let word of words) {
+
+    }
 }
 
 function create_thumbnail(screenshot) {
@@ -243,7 +252,7 @@ function create_thumbnail(screenshot) {
                     .composite(frame, 0, 0)
                     .convolute([
                         [-1 / 3,    -1 / 3,  -1 / 3],
-                        [ 1 / 3,       1.2,  -1 / 3],
+                        [ 1 / 3,      1.05,  -1 / 3],
                         [ 1 / 3,     1 / 3,   1 / 3]
                     ])
                 image.getBuffer(Jimp.MIME_JPEG, (err, buf) => {
