@@ -196,8 +196,8 @@ async function upload_all(narezki, stream, client) {
                     }
                 }, async (err, video) => {
                     if(err) {
+                        console.log("Возникла ошибка при загрузке видео:")
                         console.error(err)
-                        process.exit(1)
                     }
                     console.log(`Опубликована нарезка "${video.data.snippet.title}" (https://youtu.be/${video.data.id})`)
                     service.thumbnails.set({
@@ -208,6 +208,9 @@ async function upload_all(narezki, stream, client) {
                         }
                     }).then(_ => {
                         console.log("Превью загружено")
+                    }).catch(err => {
+                        console.log("Возникла ошибка при загрузке превью:")
+                        console.error(err)
                     })
                 })
             }
