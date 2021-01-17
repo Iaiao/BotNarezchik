@@ -264,7 +264,7 @@ function generate_tags(name) {
     }
     tags += "фуга тв,фуга тв нарезка,пятёрка смотрит,пятёрка реакция,нарезки пятёрка,5opka,пятерка пятерка,пятёрка нарезка,пятерка нарезка,реакция пятерка"
     tags = tags.substring(0, 465)
-    return tags
+    return tags.split(",")
 }
 
 function create_thumbnail(screenshot) {
