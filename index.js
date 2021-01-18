@@ -113,6 +113,7 @@ async function run(client) {
         }
     }
     for(let [stream, narezki] of Object.entries(streams)) {
+        narezki.push({ time: "12:00:00" })
         if(fs.existsSync("stream_" + stream + ".mkv")) {
             console.log("Стрим уже скачан, обрезаю")
             upload_all(narezki, stream, client)
