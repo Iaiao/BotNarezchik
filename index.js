@@ -284,10 +284,11 @@ function create_thumbnail(screenshot) {
                     .contrast(0.25)
                     .composite(frame, 0, 0)
                     .convolute([
-                        [-1 / 3,    -1 / 3,  -1 / 3],
-                        [ 1 / 3,      1.05,  -1 / 3],
-                        [ 1 / 3,     1 / 3,   1 / 3]
+                        [-1 / 2,    -1 / 2,  -1 / 2],
+                        [ 1 / 2,      0.95,  -1 / 2],
+                        [ 1 / 2,     1 / 2,   1 / 2]
                     ])
+                    .resize(1280, 720)
                 image.getBuffer(Jimp.MIME_JPEG, (err, buf) => {
                     let stream = new Readable({
                         read() {
