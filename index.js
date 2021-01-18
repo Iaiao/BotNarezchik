@@ -315,12 +315,12 @@ function sleep(s) {
     })
 }
 
-function timeToSeconds(s) {
-    let [h, m, s] = s.split("")
+function timeToSeconds(str) {
+    let [h, m, s] = str.split(":")
     if(s === undefined) {
         s = m
         m = h
-        s = "0"
+        h = "0"
     }
     return parseInt(s) + parseInt(m) * 60 + parseInt(h) * 60 * 60
 }
