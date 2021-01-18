@@ -2,6 +2,7 @@
 /stream_*
 /node_modules
 /.vscode
-/narezka.mp4
+/narezka.mkv
 /thumbnail.jpg
 /frames
+/intro.mp4

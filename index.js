@@ -9,7 +9,7 @@ const yesno = require("yesno")
 const Jimp = require("jimp")
 const { Readable } = require("stream")
 
-const DEBUG = false
+const DEBUG = true
 
 const SCOPES = ['https://www.googleapis.com/auth/youtube.upload'];
 const TOKEN_DIR = (process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE) + '/.credentials/';
@@ -169,8 +169,13 @@ async function upload_all(narezki, stream, client) {
                 "-ss", narezka.time,
                 "-to", narezki[i + 1].time,
                 "-i", "stream_" + stream + ".mkv",
-                "-c:v", "copy",
-                "-f", "flv",
+                "-i", "intro.mp4",
+                "-filter_complex", "[1:v]colorkey=0x00ff00:0.5:0.1[ckout];[0:v][ckout]overlay[out]",
+                "-map:v", "[out]",
+                "-map:a", "0",
+                "-c:v", "libx264",
+                "-preset", "veryfast",
+                "-f", "matroska",
                 "-"
             ])
             proc_narezka.stdin.on("error", err => {
@@ -179,9 +184,9 @@ async function upload_all(narezki, stream, client) {
             proc_narezka.stderr.pipe(process.stderr)
         
             if(DEBUG) {
-                console.log("Tags: ", generate_tags(narezka.name))
+                console.log("Tags: ", generate_tags(narezka.name));
                 (await thumbnail).pipe(fs.createWriteStream("thumbnail.jpg"))
-                proc_narezka.stdout.pipe(fs.createWriteStream("narezka.mp4"))
+                proc_narezka.stdout.pipe(fs.createWriteStream("narezka.mkv"))
             } else {
                 console.log("Загружаю это на ютуб");
                 service.videos.insert({
