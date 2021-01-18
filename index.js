@@ -9,7 +9,7 @@ const yesno = require("yesno")
 const Jimp = require("jimp")
 const { Readable } = require("stream")
 
-const DEBUG = true
+const DEBUG = process.env.DEBUG == "TRUE"
 
 const SCOPES = ['https://www.googleapis.com/auth/youtube.upload'];
 const TOKEN_DIR = (process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE) + '/.credentials/';
