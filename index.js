@@ -204,7 +204,7 @@ async function upload_all(narezki, stream, client) {
                             title: narezka.name,
                             description: `В этой нарезке - ${narezka.name}
 Поставь лайк и подпишись!
-Стрим: https://youtu.be/${stream}?t=${narezka.time}`,
+Стрим: https://youtu.be/${stream}?t=${timeToSeconds(narezka.time)}s`,
                             defaultAudioLanguage: "ru",
                             defaultLanguage: "ru",
                             tags: generate_tags(narezka.name)
@@ -313,4 +313,14 @@ function sleep(s) {
     return new Promise(resolve => {
         setTimeout(resolve, s * 1000)
     })
+}
+
+function timeToSeconds(s) {
+    let [h, m, s] = s.split("")
+    if(s === undefined) {
+        s = m
+        m = h
+        s = "0"
+    }
+    return parseInt(s) + parseInt(m) * 60 + parseInt(h) * 60 * 60
 }
