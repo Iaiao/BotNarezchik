@@ -269,8 +269,9 @@ function generate_tags(name) {
         tags = tags.replace(new RegExp("[^,].*" + word + ".*[^,]", "g"))
     }
     tags += "фуга тв,фуга тв нарезка,пятёрка смотрит,пятёрка реакция,нарезки пятёрка,5opka,пятерка пятерка,пятёрка нарезка,пятерка нарезка,реакция пятерка"
+    tags = tags.replace(/"'/, "")
     tags = tags.substring(0, 465)
-    return tags.split(",")
+    return [...new Set(tags.split(","))]
 }
 
 function create_thumbnail(screenshot) {
