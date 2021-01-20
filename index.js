@@ -197,8 +197,10 @@ async function upload_all(narezki, stream, client) {
                     stabilize: true,
                     requestBody: {
                         status: {
+                            embeddable: true,
                             madeForKids: false,
-                            privacyStatus: "public"
+                            privacyStatus: "private",
+                            publishAt: new Date(Date.now() + i * 1000 * 60 * 60)
                         },
                         snippet: {
                             title: narezka.name,
@@ -228,20 +230,21 @@ async function upload_all(narezki, stream, client) {
                     if(err) {
                         console.log("Возникла ошибка при загрузке видео:")
                         console.error(err)
+                    } else {
+                        console.log(`Опубликована нарезка "${video.data.snippet.title}" (https://youtu.be/${video.data.id})`)
+                        service.thumbnails.set({
+                            auth: client,
+                            videoId: video.data.id,
+                            media: {
+                                body: await thumbnail
+                            }
+                        }).then(_ => {
+                            console.log("Превью загружено")
+                        }).catch(err => {
+                            console.log("Возникла ошибка при загрузке превью:")
+                            console.error(err)
+                        })
                     }
-                    console.log(`Опубликована нарезка "${video.data.snippet.title}" (https://youtu.be/${video.data.id})`)
-                    service.thumbnails.set({
-                        auth: client,
-                        videoId: video.data.id,
-                        media: {
-                            body: await thumbnail
-                        }
-                    }).then(_ => {
-                        console.log("Превью загружено")
-                    }).catch(err => {
-                        console.log("Возникла ошибка при загрузке превью:")
-                        console.error(err)
-                    })
                 })
             }
         })
