@@ -163,15 +163,15 @@ async function upload_all(narezki, stream, client) {
             proc_screenshot.stdin.on("error", err => {
                 console.log("Ffmpeg завершил работу: " + err.name)
             })
-            let thumbnail = create_thumbnail(Buffer.concat(await toArray(proc_screenshot.stdout)))
+            let thumbnail = create_thumbnail(toArray(proc_screenshot.stdout))
             let proc_narezka = cp.spawn("ffmpeg", [
                 "-v", "quiet",
                 "-stats",
                 "-ss", narezka.time,
                 "-to", narezki[i + 1].time,
                 "-i", "stream_" + stream + ".mkv",
-                "-i", "intro.mp4",
-                "-filter_complex", "[1:v]colorkey=0x00ff00:0.5:0.1[ckout];[0:v][ckout]overlay[out]",
+                "-i", "intro.mov",
+                "-filter_complex", "[0:v][1:v]overlay[out]",
                 "-map:v", "[out]",
                 "-map:a", "0",
                 "-c:v", "libx264",
@@ -204,7 +204,17 @@ async function upload_all(narezki, stream, client) {
                             title: narezka.name,
                             description: `В этой нарезке - ${narezka.name}
 Поставь лайк и подпишись!
-Стрим: https://youtu.be/${stream}?t=${timeToSeconds(narezka.time)}s`,
+Стрим: https://youtu.be/${stream}?t=${timeToSeconds(narezka.time)}s
+
+=== КАК ПОПАСТЬ В ВИДЕО ===
+Пиши комментарии:
+1 слово = 1 балл
+1 лайк = 2 балла
+Подписка = всё умножается на 2
+Комментарий без лайка = всё умножается на 3
+Спам и флуд = бан
+ТОП 3 попадают в следующую нарезку
+`,
                             defaultAudioLanguage: "ru",
                             defaultLanguage: "ru",
                             tags: generate_tags(narezka.name)
@@ -278,7 +288,7 @@ function create_thumbnail(screenshot) {
     return new Promise(async (resolve, reject) => {
         let files = fs.readdirSync("frames/")
         let frame = files[Math.floor(Math.random() * files.length)]
-        Jimp.read(Buffer.from(screenshot)).then(image => {
+        Jimp.read(Buffer.concat(await screenshot)).then(image => {
             Jimp.read("frames/" + frame).then(frame => {
                 image
                     .contrast(0.25)

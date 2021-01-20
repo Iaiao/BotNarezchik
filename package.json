@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node index"
+    "start": "node index",
+    "introgen": "node introgen"
   },
   "author": "Iaiao",
   "license": "MIT",
@@ -15,6 +16,7 @@
     "stream-to-array": "^2.3.0",
     "vk-io": "^4.1.2",
     "yesno": "^0.3.1",
-    "youtube-dl": "^3.0.2"
+    "youtube-dl": "^3.0.2",
+    "ytactive": "^1.0.6"
   }
 }
