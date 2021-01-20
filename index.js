@@ -267,24 +267,24 @@ function when_all_selected() {
 
 function generate_tags(name) {
     let words = name.split(" ").map(word => word.replace(/,/g, ""))
-    let tags = "пятёрка,пятерка,пятерка нарезки,бот нарезки,бот нарезки пятёрки,"
+    let tags = "пятёрка,пятерка,пятерка нарезки,бот нарезки,бот нарезки пятёрки".split(",")
     for(let word of words) {
         word = word.toLowerCase()
-        if(Math.random() > 0.2) tags += "пятёрка " + word + ","
-        if(Math.random() > 0.2) tags += "пятерка " + word + ","
-        if(Math.random() > 0.8) tags += word + ","
-        if(Math.random() > 0.7) tags += word + " пятерка" + ","
+        if(Math.random() > 0.15) tags.push("пятёрка " + word)
+        if(Math.random() > 0.15) tags.push("пятерка " + word)
+        if(Math.random() > 0.75) tags.push(word)
+        if(Math.random() > 0.65) tags.push(word + " пятерка")
     }
     for(let i = 0; i < words.length - 1; i++) {
-        if(Math.random() > 0.3) tags += words[i] + " " + words[i + 1] + ","
+        if(Math.random() > 0.25) tags.push(words[i] + " " + words[i + 1])
     }
     for(let word of BANNED_WORDS) {
         tags = tags.replace(new RegExp("[^,].*" + word + ".*[^,]", "g"))
     }
-    tags += "фуга тв,фуга тв нарезка,пятёрка смотрит,пятёрка реакция,нарезки пятёрка,5opka,пятерка пятерка,пятёрка нарезка,пятерка нарезка,реакция пятерка"
-    tags = tags.replace(/"'/, "")
-    tags = tags.substring(0, 465)
-    return [...new Set(tags.split(","))]
+    tags.concat("фуга тв,фуга тв нарезка,пятёрка смотрит,пятёрка реакция,нарезки пятёрка,5opka,пятерка пятерка,пятёрка нарезка,пятерка нарезка,реакция пятерка".split(","))
+    tags = tags.map(tag.replace(/["'<>\/\\]/g, "")).map(a => '"' + tag + '"');
+    tags = [...new Set(tags)].join(",").substring(0, 499).split(",").map(a => a.replace(/"/g, ""))
+    return tags
 }
 
 function create_thumbnail(screenshot) {
