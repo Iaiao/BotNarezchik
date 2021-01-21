@@ -267,7 +267,7 @@ function generate_tags(name) {
         if(Math.random() > 0.25) tags.push(words[i] + " " + words[i + 1])
     }
     tags.concat("фуга тв,фуга тв нарезка,пятёрка смотрит,пятёрка реакция,нарезки пятёрка,5opka,пятерка пятерка,пятёрка нарезка,пятерка нарезка,реакция пятерка".split(","))
-    tags = tags.map(tag.replace(/["'<>\/\\]/g, "")).map(a => '"' + tag + '"');
+    tags = tags.map(tag => tag.replace(/["'<>\/\\]/g, "")).map(tag => '"' + tag + '"');
     tags = [...new Set(tags)].join(",").substring(0, 499).split(",").map(a => a.replace(/"/g, ""))
     return tags
 }
