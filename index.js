@@ -15,18 +15,6 @@ const SCOPES = ['https://www.googleapis.com/auth/youtube.upload'];
 const TOKEN_DIR = (process.env.HOME || process.env.HOMEPATH || process.env.USERPROFILE) + '/.credentials/';
 const TOKEN_PATH = TOKEN_DIR + 'youtube-nodejs-quickstart.json';
 
-const BANNED_WORDS = [
-    "смерт",
-    "умер",
-    "терр?ор",
-    "войн",
-    "убит",
-    "порн.",
-    "килл",
-    "рейд",
-    "г[оа]вн."
-] // в группе вроде не так много бан-слов, поэтому думаю не стоит добавлять 1000000 слов
-
 fs.readFile('client_secret.json', function processClientSecrets(err, content) {
     if (err) {
         console.log('Ошибка чтения файла с секретами: ' + err);
@@ -277,9 +265,6 @@ function generate_tags(name) {
     }
     for(let i = 0; i < words.length - 1; i++) {
         if(Math.random() > 0.25) tags.push(words[i] + " " + words[i + 1])
-    }
-    for(let word of BANNED_WORDS) {
-        tags = tags.replace(new RegExp("[^,].*" + word + ".*[^,]", "g"))
     }
     tags.concat("фуга тв,фуга тв нарезка,пятёрка смотрит,пятёрка реакция,нарезки пятёрка,5opka,пятерка пятерка,пятёрка нарезка,пятерка нарезка,реакция пятерка".split(","))
     tags = tags.map(tag.replace(/["'<>\/\\]/g, "")).map(a => '"' + tag + '"');
