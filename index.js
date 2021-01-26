@@ -158,12 +158,7 @@ async function upload_all(narezki, stream, client) {
                 "-ss", narezka.time,
                 "-to", narezki[i + 1].time,
                 "-i", "stream_" + stream + ".mkv",
-                "-i", "intro.mov",
-                "-filter_complex", "[0:v][1:v]overlay[out]",
-                "-map:v", "[out]",
-                "-map:a", "0",
-                "-c:v", "libx264",
-                "-preset", "veryfast",
+                "-c", "copy",
                 "-f", "matroska",
                 "-"
             ])
