@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node index"
+    "start": "node index",
+    "introgen": "node introgen"
   },
   "author": "Iaiao",
   "license": "MIT",
