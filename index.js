@@ -8,7 +8,6 @@ const OAuth2 = google.auth.OAuth2;
 const yesno = require("yesno")
 const Jimp = require("jimp")
 const { Readable } = require("stream")
-const gi = require('node-gtk')
 const Gtk = gi.require('Gtk', '3.0')
 
 const DEBUG = process.env.DEBUG == "TRUE"
@@ -83,93 +82,93 @@ const vk = new VK({
 
 let win, status
 async function run(client) {
-    gi.startLoop()
-    Gtk.init()
+    // gi.startLoop()
+    // Gtk.init()
 
-    const builder = Gtk.Builder.newFromFile(__dirname + "/ui.glade")
-    win = builder.getObject("mainWindow")
-    let post_url_entry = builder.getObject("postUrlEntry")
-    let button = builder.getObject("startButton")
-    let box = builder.getObject("box")
+    // const builder = Gtk.Builder.newFromFile(__dirname + "/ui.glade")
+    // win = builder.getObject("mainWindow")
+    // let post_url_entry = builder.getObject("postUrlEntry")
+    // let button = builder.getObject("startButton")
+    // let box = builder.getObject("box")
 
-    win.setDefaultSize(1280, 720)
-    win.setTitle("Бот Обрубка (генерация интро)")
-    win.showAll()
-    require("./introgen")(process.env.YTA_TOKEN)
-        .then(() => win.setTitle("Бот Обрубка"))
-    win.on("destroy", () => {
-        process.exit(0)
-    })
-    let streams = {}
-    let checkboxes = {}
-    post_url_entry.on("changed", () => {
-        Object.values(checkboxes).forEach(widget => box.remove(widget))
-        checkboxes = {}
-        box.showAll()
-        if(/^(https?:\/\/)?(www\.)?vk\.com\/[0-9_a-zA-Z]+\?w=wall-?\d+_\d+$/i.test(post_url_entry.getText())) {
-            let post = post_url_entry.getText().split("?w=wall")[1]
-            parse(post).then(result => {
-                streams = result
-                for(let [stream, narezki] of Object.entries(streams)) {
-                    let i = 0
-                    for(let narezka of narezki) {
-                        let widget = Gtk.CheckButton.newWithLabel(narezka.name, "d")
-                        checkboxes[stream + " " + i++] = widget
-                        box.packStart(widget, true, true, 2)
-                    }
-                }
-                button.setSensitive(true)
-                box.showAll()
-            }).catch(err => {
-                console.error(err)
-            })
-        } else {
-            button.setSensitive(false)
-            box.showAll()
-        }
-    })
-    button.getChild().setMarkup('<span size="xx-large">Начать обрезание</span>')
-    button.setSensitive(false)
-    async function onButtonClick() {
-        let narezki = []
-        for(let [narezka, widget] of Object.entries(checkboxes)) {
-            narezki.push({
-                enabled: widget.active,
-                ...streams[narezka.split(" ")[0]][parseInt(narezka.split(" ")[1])]
-            })
-        }
-        narezki.push({time: "12:00:00"})
-        post_url_entry.setText("")
-        let service = google.youtube('v3')
-        for(let i = 0; i < narezki.length - 1; i++) {
-            if(!narezki[i].enabled) continue
-            win.setTitle(`Обрубка #${i + 1} > ${narezki[i].name} (00:00:00.00)`)
-            win.showAll()
-            let interval = setInterval(() => {
-                win.setTitle(`Обрубка #${i + 1} > ${narezki[i].name} (${status})`)
-                win.show()
-            }, 100)
-            await upload(service, client, narezki[i], narezki[i + 1].time)
-            clearInterval(interval)
-        }
-        win.setTitle("Бот Обрубка")
-        win.showAll()
-        let dialog = new Gtk.MessageDialog(win, Gtk.DialogFlags.MODAL, Gtk.MessageType.INFO, Gtk.ButtonsType.NONE)
-        dialog.addButton("Готово", 42)
-        dialog.setDefaultSize(300, 1)
-        dialog.setTitle("Все нарезки опубликованы")
-        dialog.run()
-        dialog.destroy()
-    }
-    button.on("released", onButtonClick)
-    button.on("key-press-event", event => {
-        if(event.keyval == 65293 /* ENTER */) {
-            onButtonClick()
-        }
-    })
+    // win.setDefaultSize(1280, 720)
+    // win.setTitle("Бот Обрубка (генерация интро)")
+    // win.showAll()
+    // require("./introgen")(process.env.YTA_TOKEN)
+    //     .then(() => win.setTitle("Бот Обрубка"))
+    // win.on("destroy", () => {
+    //     process.exit(0)
+    // })
+    // let streams = {}
+    // let checkboxes = {}
+    // post_url_entry.on("changed", () => {
+    //     Object.values(checkboxes).forEach(widget => box.remove(widget))
+    //     checkboxes = {}
+    //     box.showAll()
+    //     if(/^(https?:\/\/)?(www\.)?vk\.com\/[0-9_a-zA-Z]+\?w=wall-?\d+_\d+$/i.test(post_url_entry.getText())) {
+    //         let post = post_url_entry.getText().split("?w=wall")[1]
+    //         parse(post).then(result => {
+    //             streams = result
+    //             for(let [stream, narezki] of Object.entries(streams)) {
+    //                 let i = 0
+    //                 for(let narezka of narezki) {
+    //                     let widget = Gtk.CheckButton.newWithLabel(narezka.name, "d")
+    //                     checkboxes[stream + " " + i++] = widget
+    //                     box.packStart(widget, true, true, 2)
+    //                 }
+    //             }
+    //             button.setSensitive(true)
+    //             box.showAll()
+    //         }).catch(err => {
+    //             console.error(err)
+    //         })
+    //     } else {
+    //         button.setSensitive(false)
+    //         box.showAll()
+    //     }
+    // })
+    // button.getChild().setMarkup('<span size="xx-large">Начать обрезание</span>')
+    // button.setSensitive(false)
+    // async function onButtonClick() {
+    //     let narezki = []
+    //     for(let [narezka, widget] of Object.entries(checkboxes)) {
+    //         narezki.push({
+    //             enabled: widget.active,
+    //             ...streams[narezka.split(" ")[0]][parseInt(narezka.split(" ")[1])]
+    //         })
+    //     }
+    //     narezki.push({time: "12:00:00"})
+    //     post_url_entry.setText("")
+    //     let service = google.youtube('v3')
+    //     for(let i = 0; i < narezki.length - 1; i++) {
+    //         if(!narezki[i].enabled) continue
+    //         win.setTitle(`Обрубка #${i + 1} > ${narezki[i].name} (00:00:00.00)`)
+    //         win.showAll()
+    //         let interval = setInterval(() => {
+    //             win.setTitle(`Обрубка #${i + 1} > ${narezki[i].name} (${status})`)
+    //             win.show()
+    //         }, 100)
+    //         await upload(service, client, narezki[i], narezki[i + 1].time)
+    //         clearInterval(interval)
+    //     }
+    //     win.setTitle("Бот Обрубка")
+    //     win.showAll()
+    //     let dialog = new Gtk.MessageDialog(win, Gtk.DialogFlags.MODAL, Gtk.MessageType.INFO, Gtk.ButtonsType.NONE)
+    //     dialog.addButton("Готово", 42)
+    //     dialog.setDefaultSize(300, 1)
+    //     dialog.setTitle("Все нарезки опубликованы")
+    //     dialog.run()
+    //     dialog.destroy()
+    // }
+    // button.on("released", onButtonClick)
+    // button.on("key-press-event", event => {
+    //     if(event.keyval == 65293 /* ENTER */) {
+    //         onButtonClick()
+    //     }
+    // })
 
-    win.showAll()
-    Gtk.main()
+    // win.showAll()
+    // Gtk.main()
 }
 
 async function parse(post) {
