@@ -5,7 +5,7 @@ const cp = require("child_process")
 const CHANNEL = "UCCxqOWFBxFIEgw4yMk16XEw"
 const exclude = []
 
-let gen = token => new Promise((resolve, reject) => {
+let gen = token => new Promise((resolve, _reject) => {
     let counter = new UserCounter(token, comment => new Promise((resolve, _reject) => {
         let points = comment.like_count * 1 + Math.min(comment.text.split(" ").filter((w, i, a) => a.indexOf(w) == i).filter(a => a.length > 2).length, 30) * 2
         if(comment.like_count === 0) points *= 3

@@ -93,7 +93,10 @@ async function run(client) {
     let box = builder.getObject("box")
 
     win.setDefaultSize(1280, 720)
-    win.setTitle("Бот Обрубка")
+    win.setTitle("Бот Обрубка (генерация интро)")
+    win.showAll()
+    require("./introgen")(process.env.YTA_TOKEN)
+        .then(() => win.setTitle("Бот Обрубка"))
     win.on("destroy", () => {
         process.exit(0)
     })
@@ -137,9 +140,6 @@ async function run(client) {
         }
         narezki.push({time: "12:00:00"})
         post_url_entry.setText("")
-        win.setTitle("Бот Обрубка (генерация интро)")
-        win.showAll()
-        await require("./introgen")(process.env.YTA_TOKEN)
         let service = google.youtube('v3')
         for(let i = 0; i < narezki.length - 1; i++) {
             if(!narezki[i].enabled) continue
