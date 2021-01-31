@@ -81,7 +81,7 @@ const vk = new VK({
     token: process.env.TOKEN
 })
 
-let win, status
+let win, status, intro_done
 async function run(client) {
     gi.startLoop()
     Gtk.init()
@@ -90,13 +90,20 @@ async function run(client) {
     win = builder.getObject("mainWindow")
     let post_url_entry = builder.getObject("postUrlEntry")
     let button = builder.getObject("startButton")
+    button.setSensitive(false)
     let box = builder.getObject("box")
 
     win.setDefaultSize(1280, 720)
     win.setTitle("Бот Обрубка (генерация интро)")
     win.showAll()
     require("./introgen")(process.env.YTA_TOKEN)
-        .then(() => win.setTitle("Бот Обрубка"))
+        .then(() => {
+            win.setTitle("Бот Обрубка")
+            intro_done = true
+            if(box.getChildren().length > 0) {
+                button.setSensitive(true)
+            }
+        })
     win.on("destroy", () => {
         process.exit(0)
     })
@@ -118,7 +125,7 @@ async function run(client) {
                         box.packStart(widget, true, true, 2)
                     }
                 }
-                button.setSensitive(true)
+                if(intro_done) button.setSensitive(true)
                 box.showAll()
             }).catch(err => {
                 console.error(err)
@@ -207,18 +214,61 @@ function upload(service, client, narezka, time_end) {
             console.log("Ffmpeg завершил работу: " + err.name)
         })
         let thumbnail = create_thumbnail(toArray(proc_screenshot.stdout))
-        let proc_narezka = cp.spawn("ffmpeg", [
+        
+        let proc_narezka_start = cp.spawn("ffmpeg", [
+            "-y",
             "-v", "quiet",
             "-stats",
             "-ss", narezka.time,
             "-to", time_end,
             "-i", "stream_" + narezka.id + ".mkv",
             "-i", "intro.mov",
-            "-filter_complex", "[0:v][1:v]overlay=eof_action=pass[out]",
+            "-filter_complex", "[0:v][1:v]overlay[out]",
             "-map:v", "[out]",
             "-map", "0:a",
             "-c:v", "libx264",
-            "-preset", "superfast",
+            "-preset", "ultrafast",
+            "-t", "4",
+            "-muxdelay", "0",
+            "-c:a", "aac",
+            "narezka_start.ts"
+        ])
+        proc_narezka_start.stdin.on("error", err => {
+            console.log("Ffmpeg завершил работу: " + err.name)
+        })
+        proc_narezka_start.stderr.pipe(process.stderr)
+        proc_narezka_start.stderr.on("data", data => {
+            status = "интро, " + new String(data)?.split(" time=")?.[1]?.split(" ")?.[0]
+        })
+        await waitForEvent(proc_narezka_start, "close")
+
+        let proc_narezka_content = cp.spawn("ffmpeg", [
+            "-y",
+            "-v", "quiet",
+            "-stats",
+            "-ss", narezka.time,
+            "-to", time_end,
+            "-i", "stream_" + narezka.id + ".mkv",
+            "-c", "copy",
+            "-ss", "4", // после narezka_start.ts
+            "-avoid_negative_ts", "make_zero",
+            "-fflags", "+genpts",
+            "-muxdelay", "0",
+            "-c:a", "aac",
+            "narezka_content.ts"
+        ])
+        proc_narezka_content.stdin.on("error", err => {
+            console.log("Ffmpeg завершил работу: " + err.name)
+        })
+        proc_narezka_content.stderr.pipe(process.stderr)
+        proc_narezka_content.stderr.on("data", data => {
+            status = "обрезание, " + new String(data)?.split(" time=")?.[1]?.split(" ")?.[0]
+        })
+        await waitForEvent(proc_narezka_content, "close")
+        
+        let proc_narezka = cp.spawn("ffmpeg", [
+            "-i", "concat:narezka_start.ts|narezka_content.ts",
+            "-c:v", "copy",
             "-f", "matroska",
             "-"
         ])
@@ -359,4 +409,10 @@ function timeToSeconds(str) {
         h = "0"
     }
     return parseInt(s) + parseInt(m) * 60 + parseInt(h) * 60 * 60
+}
+
+function waitForEvent(object, event) {
+    return new Promise((resolve, _reject) => {
+        object.on(event, resolve)
+    })
 }
