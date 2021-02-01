@@ -1,0 +1,2 @@
+file 'narezka_start.ts'
+file 'narezka_content.ts'
