@@ -49,7 +49,7 @@ let gen = token => new Promise((resolve, _reject) => {
                     }
                     image.print(font, 555, 1030, "СМОТРИ ОПИСАНИЕ ЧТОБЫ ПОПАСТЬ СЮДА")
                     image.write("commenters.png", () => {
-                        let proc = cp.spawn("ffmpeg", "-y -i intro.mp4 -loop 1 -i commenters.png -filter_complex [0:v]chromakey=#00ff00:0.3:0.1[c];[1:v]fade=in:50:20[f];[f]fade=out:90:10[f];[f][c]overlay[out] -map:v [out] -c:v png -t 4 intro.mov".split(" "))
+                        let proc = cp.spawn("ffmpeg", "-y -i intro.mp4 -loop 1 -i commenters.png -loop 1 -i subscribe.png -filter_complex [0:v]chromakey=#00ff00:0.3:0.1[c];[1:v]fade=in:50:20[f];[2:v]fade=in:90:10[s];[f]fade=out:90:10[f];[f][s]overlay[i];[i][c]overlay[out] -map:v [out] -c:v png -t 4 intro.mov".split(" "))
                         proc.stderr.pipe(process.stderr)
                         proc.on("close", () => {
                             resolve()
