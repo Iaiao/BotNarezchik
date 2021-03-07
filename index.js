@@ -145,9 +145,12 @@ async function run(client) {
                 ...streams[narezka.split(" ")[0]][parseInt(narezka.split(" ")[1])]
             })
         }
-        narezki.push({time: "12:00:00"})
+        narezki.push({ time: "12:00:00", active: false })
         post_url_entry.setText("")
         let service = google.youtube('v3')
+        let date = Date.now()
+        let delay = 1000 * 60 * 60 * 24 / (narezki.filter(n => n.enabled).length)
+        let active = 0
         for(let i = 0; i < narezki.length - 1; i++) {
             if(!narezki[i].enabled) continue
             win.setTitle(`Обрубка #${i + 1} > ${narezki[i].name} (00:00:00.00)`)
@@ -156,7 +159,7 @@ async function run(client) {
                 win.setTitle(`Обрубка #${i + 1} > ${narezki[i].name} (${status})`)
                 win.show()
             }, 100)
-            await upload(service, client, narezki[i], narezki[i + 1].time)
+            await upload(service, client, narezki[i], narezki[i + 1].time, date + delay * active++)
             clearInterval(interval)
         }
         win.setTitle("Бот Обрубка")
@@ -198,7 +201,7 @@ async function parse(post) {
     return streams
 }
 
-function upload(service, client, narezka, time_end) {
+function upload(service, client, narezka, time_end, scheduleTime) {
     return new Promise(async (resolve, reject) => {
         console.log("Нарезка", narezka.name, narezka.time + "-" + time_end)
         let proc_screenshot = cp.spawn("ffmpeg", [
@@ -217,7 +220,6 @@ function upload(service, client, narezka, time_end) {
         
         let proc_narezka_start = cp.spawn("ffmpeg", [
             "-y",
-            "-v", "quiet",
             "-stats",
             "-ss", narezka.time,
             "-to", time_end,
@@ -244,7 +246,6 @@ function upload(service, client, narezka, time_end) {
 
         let proc_narezka_content = cp.spawn("ffmpeg", [
             "-y",
-            "-v", "quiet",
             "-stats",
             "-ss", narezka.time,
             "-to", time_end,
@@ -287,21 +288,20 @@ function upload(service, client, narezka, time_end) {
             console.log("Piping")
             proc_narezka.on("close", resolve)
         } else {
-            console.log("Загружаю это на ютуб");
             service.videos.insert({
                 auth: client,
                 autoLevels: true,
-                notifySubscribers: false,
-                stabilize: true,
+                stabilize: false,
                 requestBody: {
                     status: {
                         embeddable: true,
                         madeForKids: false,
-                        privacyStatus: "public"
+                        privacyStatus: "private",
+                        publishAt: new Date(scheduleTime).toISOString()
                     },
                     snippet: {
-                        title: narezka.name,
-                        description: `В этой нарезке - ${narezka.name}
+                        title: narezka.name.replace(/"'<>\[\]/g, "").substring(0, 99),
+                        description: `В этой нарезке - ${narezka.name.replace(/"'<>\[\]/g, "")}
 Поставь лайк и подпишись!
 Стрим: https://youtu.be/${narezka.id}?t=${timeToSeconds(narezka.time)}s
 
@@ -313,6 +313,9 @@ function upload(service, client, narezka, time_end) {
 Комментарий без лайка = всё умножается на 3
 Спам и флуд = бан
 ТОП 3 попадают в следующую нарезку
+
+Вк автора - https://vk.com/svinopotam555
+Донат - напишите в комментарии если хотите задонатить, мне лень создавать donationalerts
 `,
                         defaultAudioLanguage: "ru",
                         defaultLanguage: "ru",
@@ -372,6 +375,7 @@ function create_thumbnail(screenshot) {
         Jimp.read(Buffer.concat(await screenshot)).then(image => {
             Jimp.read("frames/" + frame).then(frame => {
                 image
+                    .resize(1280, 720)
                     .contrast(0.25)
                     .composite(frame, 0, 0)
                     .convolute([
@@ -379,7 +383,6 @@ function create_thumbnail(screenshot) {
                         [ 1 / 2,      0.95,  -1 / 2],
                         [ 1 / 2,     1 / 2,   1 / 2]
                     ])
-                    .resize(1280, 720)
                 image.getBuffer(Jimp.MIME_JPEG, (_err, buf) => {
                     let stream = new Readable({
                         read() {
